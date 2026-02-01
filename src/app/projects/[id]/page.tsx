@@ -546,7 +546,7 @@ export default function ProjectDetailPage() {
                         {deployment.workflow.name}
                       </div>
                       <div className="text-sm text-gray-500 mt-1">
-                        部署于 {formatDate(deployment.createdAt)} by @{deployment.user.username}
+                        部署于 {formatDate(deployment.createdAt)} by {deployment.user.name || deployment.user.username}
                       </div>
                     </div>
                     <div className="text-right">

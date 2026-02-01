@@ -35,9 +35,9 @@ export default function Dashboard() {
   const { isAuthenticated, accessToken, user } = useAuthStore()
   const [stats, setStats] = useState<Stats>({
     totalProjects: 0,
-    todayDeployments: 24,
-    successRate: 95.8,
-    avgDuration: '3m42s',
+    todayDeployments: 0,
+    successRate: 0,
+    avgDuration: '-',
     pendingApprovals: 0
   })
   const [recentDeployments, setRecentDeployments] = useState<RecentDeployment[]>([])
@@ -71,14 +71,17 @@ export default function Dashboard() {
       const successCount = todayDeployments.filter((d: any) => d.status === 'SUCCESS').length
       const successRate = todayDeployments.length > 0 
         ? (successCount / todayDeployments.length) * 100 
-        : 95.8
+        : 0
       
       const durations = deployments
         .filter((d: any) => d.duration)
         .map((d: any) => d.duration)
-      const avgDuration = durations.length > 0
-        ? Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length)
-        : 222
+      
+      let avgDurationStr = '-'
+      if (durations.length > 0) {
+        const avgDuration = Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length)
+        avgDurationStr = avgDuration > 60 ? `${Math.floor(avgDuration / 60)}m${avgDuration % 60}s` : `${avgDuration}s`
+      }
       
       const pendingApprovals = deployments.filter((d: any) => 
         d.status === 'WAITING_APPROVAL'
@@ -86,9 +89,9 @@ export default function Dashboard() {
 
       setStats({
         totalProjects: projects.length,
-        todayDeployments: todayDeployments.length || 24,
+        todayDeployments: todayDeployments.length,
         successRate: Math.round(successRate * 10) / 10,
-        avgDuration: avgDuration > 60 ? `${Math.floor(avgDuration / 60)}m${avgDuration % 60}s` : `${avgDuration}s`,
+        avgDuration: avgDurationStr,
         pendingApprovals
       })
 
@@ -171,7 +174,7 @@ export default function Dashboard() {
                   className="bg-[#0D0D0D] text-white hover:bg-[#0D0D0D]/90"
                   style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                 >
-                  <Link href="/projects">
+                  <Link href="/projects/new">
                     <Plus className="mr-2 h-3.5 w-3.5" />
                     新建项目
                   </Link>
@@ -191,12 +194,14 @@ export default function Dashboard() {
               <div className="text-[36px] font-semibold text-[#0D0D0D] leading-none tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                 {stats.todayDeployments}
               </div>
-              <div className="flex items-center gap-2">
-                <ArrowUp className="h-3.5 w-3.5 text-[#22C55E]" />
-                <span className="text-xs text-[#7A7A7A]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  +12% 相比昨日
-                </span>
-              </div>
+              {stats.todayDeployments > 0 && (
+                <div className="flex items-center gap-2">
+                  <ArrowUp className="h-3.5 w-3.5 text-[#22C55E]" />
+                  <span className="text-xs text-[#7A7A7A]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    +12% 相比昨日
+                  </span>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -208,12 +213,14 @@ export default function Dashboard() {
               <div className="text-[36px] font-semibold text-[#0D0D0D] leading-none tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                 {stats.successRate}%
               </div>
-              <div className="flex items-center gap-2">
-                <ArrowUp className="h-3.5 w-3.5 text-[#22C55E]" />
-                <span className="text-xs text-[#7A7A7A]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  +2.3% 本周
-                </span>
-              </div>
+              {stats.successRate > 0 && (
+                <div className="flex items-center gap-2">
+                  <ArrowUp className="h-3.5 w-3.5 text-[#22C55E]" />
+                  <span className="text-xs text-[#7A7A7A]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    +2.3% 本周
+                  </span>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -225,12 +232,14 @@ export default function Dashboard() {
               <div className="text-[36px] font-semibold text-[#0D0D0D] leading-none tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                 {stats.avgDuration}
               </div>
-              <div className="flex items-center gap-2">
-                <ArrowDown className="h-3.5 w-3.5 text-[#22C55E]" />
-                <span className="text-xs text-[#7A7A7A]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  -15s 优化
-                </span>
-              </div>
+              {stats.avgDuration !== '-' && (
+                <div className="flex items-center gap-2">
+                  <ArrowDown className="h-3.5 w-3.5 text-[#22C55E]" />
+                  <span className="text-xs text-[#7A7A7A]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    -15s 优化
+                  </span>
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -268,7 +277,7 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <div className="text-xs text-[#7A7A7A]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        @{deployment.user.username} • {formatDate(deployment.createdAt)}
+                        {deployment.user.name || deployment.user.username} • {formatDate(deployment.createdAt)}
                       </div>
                     </div>
                     <div className="flex items-center gap-4">

@@ -53,6 +53,76 @@ export async function executeDeployment(deploymentId: string): Promise<Execution
     logs += `[${new Date().toISOString()}] 🚀 开始执行部署\n`
     logs += `[${new Date().toISOString()}] 📁 工作目录: ${workspace}\n`
     logs += `[${new Date().toISOString()}] 🔧 工作流: ${deployment.workflow.name}\n`
+    
+    // 如果指定了分支，先 checkout 到该分支
+    if (deployment.branch) {
+      logs += `[${new Date().toISOString()}] 🌿 切换到分支: ${deployment.branch}\n`
+      try {
+        // 先 fetch 最新代码
+        await execAsync('git fetch origin', {
+          cwd: workspace,
+          timeout: 60000 // 60秒超时
+        })
+        
+        // 检查是否有未提交的更改
+        try {
+          const { stdout: statusOutput } = await execAsync('git status --porcelain', {
+            cwd: workspace,
+            timeout: 5000
+          })
+          
+          if (statusOutput.trim()) {
+            logs += `[${new Date().toISOString()}] ⚠️  检测到未提交的更改，尝试暂存...\n`
+            // 暂存未提交的更改
+            await execAsync('git stash push -m "DeployMaster: Auto stash before branch switch"', {
+              cwd: workspace,
+              timeout: 10000
+            })
+            logs += `[${new Date().toISOString()}] ✅ 已暂存未提交的更改\n`
+          }
+        } catch (stashError: any) {
+          // 如果 stash 失败，记录警告但继续尝试切换分支
+          logs += `[${new Date().toISOString()}] ⚠️  暂存更改失败: ${stashError.message}\n`
+        }
+        
+        // checkout 到指定分支
+        const { stdout, stderr } = await execAsync(`git checkout ${deployment.branch}`, {
+          cwd: workspace,
+          timeout: 30000 // 30秒超时
+        })
+        
+        if (stdout) logs += stdout
+        if (stderr) logs += stderr
+        
+        // 拉取最新代码
+        await execAsync(`git pull origin ${deployment.branch}`, {
+          cwd: workspace,
+          timeout: 60000 // 60秒超时
+        })
+        
+        logs += `[${new Date().toISOString()}] ✅ 已切换到分支 ${deployment.branch}\n\n`
+      } catch (branchError: any) {
+        // 分支切换失败，终止部署
+        logs += `[${new Date().toISOString()}] ❌ 切换分支失败: ${branchError.message}\n`
+        if (branchError.stdout) logs += `stdout: ${branchError.stdout}\n`
+        if (branchError.stderr) logs += `stderr: ${branchError.stderr}\n`
+        logs += `[${new Date().toISOString()}] 部署已终止：无法切换到指定分支\n`
+        
+        // 更新日志并标记为失败
+        await prisma.deployment.update({
+          where: { id: deploymentId },
+          data: {
+            status: 'FAILED',
+            completedAt: new Date(),
+            logs,
+            errorMessage: `切换分支失败: ${branchError.message}`
+          }
+        })
+        
+        throw new Error(`切换分支失败: ${branchError.message}`)
+      }
+    }
+    
     logs += `[${new Date().toISOString()}] 📝 共 ${deployment.workflow.commands.length} 个命令\n`
     logs += `\n`
 

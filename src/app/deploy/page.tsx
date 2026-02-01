@@ -19,6 +19,7 @@ interface Project {
   id: string
   name: string
   workspace: string | null
+  defaultBranch: string | null
   currentUserRole?: string | null // 当前用户在项目中的角色
   workflows: Array<{
     id: string
@@ -38,6 +39,9 @@ function DeployContent() {
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState(preSelectedProjectId || '')
   const [selectedWorkflowId, setSelectedWorkflowId] = useState('')
+  const [selectedBranch, setSelectedBranch] = useState('')
+  const [branches, setBranches] = useState<string[]>([])
+  const [loadingBranches, setLoadingBranches] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [error, setError] = useState('')
@@ -45,6 +49,29 @@ function DeployContent() {
   useEffect(() => {
     loadProjects()
   }, [])
+
+  // 当选择项目变化或项目列表加载完成时，自动加载分支列表
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setBranches([])
+      setSelectedBranch('')
+      return
+    }
+
+    // 等待项目列表加载完成
+    if (loadingProjects || projects.length === 0) {
+      return
+    }
+
+    const project = projects.find(p => p.id === selectedProjectId)
+    if (project?.workspace) {
+      // 立即加载分支列表
+      loadBranches(selectedProjectId, project.defaultBranch)
+    } else {
+      setBranches([])
+      setSelectedBranch('')
+    }
+  }, [selectedProjectId, loadingProjects, projects])
 
   async function loadProjects() {
     try {
@@ -59,13 +86,58 @@ function DeployContent() {
         return project.currentUserRole && project.currentUserRole !== 'VIEWER'
       })
       setProjects(deployableProjects)
-      if (preSelectedProjectId && !selectedProjectId) {
-        setSelectedProjectId(preSelectedProjectId)
+      
+      // 项目列表加载完成后，如果已选择项目，立即加载分支
+      // 这里直接调用而不是依赖 useEffect，确保在正确的时机执行
+      const currentProjectId = selectedProjectId || preSelectedProjectId
+      if (currentProjectId) {
+        const project = deployableProjects.find((p: Project) => p.id === currentProjectId)
+        if (project?.workspace) {
+          // 使用 setTimeout 确保状态更新完成后再加载分支
+          setTimeout(() => {
+            loadBranches(currentProjectId, project.defaultBranch)
+          }, 0)
+        }
       }
     } catch (err: any) {
       setError(err.message || '加载项目列表失败')
     } finally {
       setLoadingProjects(false)
+    }
+  }
+
+  async function loadBranches(projectId: string, defaultBranch?: string | null) {
+    setLoadingBranches(true)
+    try {
+      const data = await api.projects.getBranches(projectId)
+      setBranches(data.branches || [])
+      
+      // 设置默认分支
+      // 优先使用传入的 defaultBranch 参数，如果没有则从 projects 中查找
+      let targetDefaultBranch = defaultBranch
+      if (!targetDefaultBranch) {
+        const project = projects.find(p => p.id === projectId)
+        targetDefaultBranch = project?.defaultBranch || null
+      }
+      
+      if (targetDefaultBranch && data.branches?.includes(targetDefaultBranch)) {
+        setSelectedBranch(targetDefaultBranch)
+      } else if (data.currentBranch && data.branches?.includes(data.currentBranch)) {
+        setSelectedBranch(data.currentBranch)
+      } else if (data.branches?.length > 0) {
+        // 优先选择 main 或 master
+        const preferredBranch = data.branches.find((b: string) => b === 'main' || b === 'master') || data.branches[0]
+        setSelectedBranch(preferredBranch)
+      } else {
+        setSelectedBranch('')
+      }
+    } catch (err: any) {
+      console.error('加载分支列表失败:', err)
+      setBranches([])
+      setSelectedBranch('')
+      // 不显示错误，只是无法选择分支
+    } finally {
+      setLoadingBranches(false)
     }
   }
 
@@ -75,6 +147,11 @@ function DeployContent() {
 
     if (!selectedProjectId || !selectedWorkflowId) {
       setError('请选择项目和工作流')
+      return
+    }
+
+    if (!selectedBranch) {
+      setError('请选择部署分支')
       return
     }
 
@@ -89,7 +166,8 @@ function DeployContent() {
     try {
       const result = await api.deployments.create({
         projectId: selectedProjectId,
-        workflowId: selectedWorkflowId
+        workflowId: selectedWorkflowId,
+        branch: selectedBranch
       })
 
       // 跳转到部署详情页面
@@ -157,7 +235,7 @@ function DeployContent() {
         </div>
 
         {/* Deploy Form */}
-        <div className="max-w-[640px]">
+        <div className="max-w-6xl">
           <Card className="p-10 border-[#E8E8E8]">
             <form onSubmit={handleDeploy} className="space-y-8">
               {error && (
@@ -183,6 +261,7 @@ function DeployContent() {
                   onValueChange={(value) => {
                     setSelectedProjectId(value)
                     setSelectedWorkflowId('')
+                    // 分支加载由 useEffect 处理
                   }}
                 >
                   <SelectTrigger className="border-[#E8E8E8] bg-[#FAFAFA] text-[#0D0D0D]">
@@ -196,13 +275,57 @@ function DeployContent() {
                 </Select>
               </div>
 
-              {/* Step 2: 选择工作流 */}
-              {selectedProject && (
+              {/* Step 2: 选择分支 */}
+              {selectedProject && selectedProject.workspace && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded bg-[#E42313] flex items-center justify-center">
                       <span className="text-white text-base font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                         2
+                      </span>
+                    </div>
+                    <h2 className="text-lg font-semibold text-[#0D0D0D]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                      选择分支
+                    </h2>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select
+                      value={selectedBranch}
+                      onValueChange={setSelectedBranch}
+                      disabled={loadingBranches}
+                    >
+                      <SelectTrigger className="flex-1 border-[#E8E8E8] bg-[#FAFAFA] text-[#0D0D0D]">
+                        <SelectValue placeholder={loadingBranches ? "加载中..." : "请选择分支"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map(branch => (
+                          <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const project = projects.find(p => p.id === selectedProjectId)
+                        loadBranches(selectedProjectId, project?.defaultBranch)
+                      }}
+                      disabled={loadingBranches}
+                      className="border-[#E8E8E8] text-[#0D0D0D]"
+                    >
+                      {loadingBranches ? '加载中...' : '刷新'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: 选择工作流 */}
+              {selectedProject && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded bg-[#E42313] flex items-center justify-center">
+                      <span className="text-white text-base font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                        3
                       </span>
                     </div>
                     <h2 className="text-lg font-semibold text-[#0D0D0D]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
@@ -221,7 +344,7 @@ function DeployContent() {
                       该项目还没有配置工作流，请先在项目详情页添加工作流
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
                       {selectedProject.workflows.map(workflow => (
                         <button
                           key={workflow.id}
@@ -284,7 +407,7 @@ function DeployContent() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={loading || !selectedProjectId || !selectedWorkflowId || !selectedProject?.workspace}
+                  disabled={loading || !selectedProjectId || !selectedWorkflowId || !selectedBranch || !selectedProject?.workspace}
                   className="flex-1 bg-[#0D0D0D] text-white hover:bg-[#0D0D0D]/90"
                   style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                 >

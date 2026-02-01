@@ -32,9 +32,12 @@ export default function EditProjectPage() {
     repoUrl: '',
     framework: '',
     workspace: '',
+    defaultBranch: '',
     tags: '',
     status: 'ACTIVE'
   })
+  const [branches, setBranches] = useState<string[]>([])
+  const [loadingBranches, setLoadingBranches] = useState(false)
 
   useEffect(() => {
     loadProject()
@@ -49,13 +52,35 @@ export default function EditProjectPage() {
         repoUrl: project.repoUrl,
         framework: project.framework || '',
         workspace: project.workspace || '',
+        defaultBranch: project.defaultBranch || '',
         tags: project.tags ? JSON.parse(project.tags).join(', ') : '',
         status: project.status
       })
+      
+      // 如果 workspace 存在，尝试加载分支列表
+      if (project.workspace) {
+        loadBranches(project.workspace)
+      }
     } catch (err: any) {
       setError(err.message || '加载项目失败')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadBranches(workspace?: string) {
+    const targetWorkspace = workspace || formData.workspace
+    if (!targetWorkspace) return
+    
+    setLoadingBranches(true)
+    try {
+      const data = await api.projects.getBranches(params.id as string)
+      setBranches(data.branches || [])
+    } catch (err: any) {
+      console.error('加载分支列表失败:', err)
+      // 不显示错误，只是无法选择分支
+    } finally {
+      setLoadingBranches(false)
     }
   }
 
@@ -78,6 +103,7 @@ export default function EditProjectPage() {
         repoUrl: formData.repoUrl,
         framework: formData.framework || undefined,
         workspace: formData.workspace || undefined,
+        defaultBranch: formData.defaultBranch || undefined,
         tags,
         status: formData.status
       })
@@ -135,7 +161,7 @@ export default function EditProjectPage() {
         </div>
 
         {/* Form */}
-        <div className="max-w-[640px]">
+        <div className="max-w-6xl">
           <Card className="p-10 border-[#E8E8E8]">
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
@@ -217,12 +243,54 @@ export default function EditProjectPage() {
                 <Input
                   id="workspace"
                   value={formData.workspace}
-                  onChange={(e) => setFormData({ ...formData, workspace: e.target.value })}
+                  onChange={(e) => {
+                    const newWorkspace = e.target.value
+                    setFormData({ ...formData, workspace: newWorkspace })
+                    // workspace 改变后，重新加载分支列表
+                    if (newWorkspace) {
+                      setTimeout(() => loadBranches(newWorkspace), 500)
+                    } else {
+                      setBranches([])
+                      setFormData(prev => ({ ...prev, defaultBranch: '' }))
+                    }
+                  }}
                   placeholder="如: /data/projects/myproject"
                   className="border-[#E8E8E8]"
                   required
                 />
                 <p className="text-xs text-[#7A7A7A]">部署服务器上的项目工作目录路径，执行命令时会cd到此目录</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="defaultBranch" className="text-sm font-medium text-[#0D0D0D]">
+                  默认分支
+                </Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={formData.defaultBranch || undefined}
+                    onValueChange={(value) => setFormData({ ...formData, defaultBranch: value })}
+                    disabled={loadingBranches || !formData.workspace}
+                  >
+                    <SelectTrigger className="flex-1 border-[#E8E8E8]">
+                      <SelectValue placeholder={loadingBranches ? "加载中..." : "请选择默认分支"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map(branch => (
+                        <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => loadBranches()}
+                    disabled={loadingBranches || !formData.workspace}
+                    className="border-[#E8E8E8] text-[#0D0D0D]"
+                  >
+                    {loadingBranches ? '加载中...' : '刷新'}
+                  </Button>
+                </div>
+                <p className="text-xs text-[#7A7A7A]">项目的默认部署分支，部署时可修改</p>
               </div>
 
               <div className="space-y-2">
@@ -262,7 +330,7 @@ export default function EditProjectPage() {
                   type="button"
                   variant="outline"
                   onClick={() => router.back()}
-                  className="border-[#E8E8E8] text-[#0D0D0D]"
+                  className="flex-1 border-[#E8E8E8] text-[#0D0D0D]"
                   style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                 >
                   取消
@@ -271,7 +339,7 @@ export default function EditProjectPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setShowDeleteDialog(true)}
-                  className="border-red-200 text-red-600 hover:bg-red-50"
+                  className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
                   style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                 >
                   删除项目
@@ -305,7 +373,7 @@ export default function EditProjectPage() {
                 <Button
                   type="submit"
                   disabled={saving}
-                  className="bg-[#0D0D0D] text-white hover:bg-[#0D0D0D]/90"
+                  className="flex-1 bg-[#0D0D0D] text-white hover:bg-[#0D0D0D]/90"
                   style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                 >
                   {saving ? '保存中...' : '保存更改'}

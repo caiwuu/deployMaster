@@ -135,7 +135,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, description, repoUrl, repoType, framework, workspace, tags, status } = body
+    const { name, description, repoUrl, repoType, framework, workspace, defaultBranch, tags, status } = body
 
     const project = await prisma.project.update({
       where: { id: projectId },
@@ -146,6 +146,7 @@ export async function PUT(
         ...(repoType && { repoType }),
         ...(framework !== undefined && { framework }),
         ...(workspace !== undefined && { workspace }),
+        ...(defaultBranch !== undefined && { defaultBranch }),
         ...(tags !== undefined && { tags: JSON.stringify(tags) }),
         ...(status && { status })
       },

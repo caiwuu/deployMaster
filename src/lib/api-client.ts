@@ -146,6 +146,9 @@ export const api = {
       request(`/api/projects/${projectId}/members?userId=${userId}`, {
         method: 'DELETE',
       }),
+    
+    getBranches: (projectId: string) => 
+      request(`/api/projects/${projectId}/branches`),
   },
 
   // 工作流
@@ -206,6 +209,7 @@ export const api = {
     create: (data: {
       projectId: string
       workflowId: string
+      branch?: string
     }) =>
       request('/api/deployments', {
         method: 'POST',

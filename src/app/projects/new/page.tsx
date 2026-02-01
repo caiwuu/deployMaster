@@ -80,7 +80,7 @@ export default function NewProjectPage() {
         </div>
 
         {/* Form */}
-        <div className="max-w-[640px]">
+        <div className="max-w-6xl">
           <Card className="p-10 border-[#E8E8E8]">
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (

@@ -300,7 +300,7 @@ function DeployHistoryContent() {
                       {deployment.workflow?.name || '-'}
                     </TableCell>
                     <TableCell className="text-xs text-[#7A7A7A]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      @{deployment.user.username}
+                      {deployment.user.name || deployment.user.username}
                     </TableCell>
                     <TableCell className="text-xs text-[#7A7A7A]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                       {formatDuration(deployment.duration)}

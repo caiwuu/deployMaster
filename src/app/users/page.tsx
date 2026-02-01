@@ -57,6 +57,11 @@ export default function UsersPage() {
     isActive: true
   })
   const [editSaving, setEditSaving] = useState(false)
+  
+  // 删除用户对话框
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<User | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -144,6 +149,30 @@ export default function UsersPage() {
       })
     } finally {
       setEditSaving(false)
+    }
+  }
+
+  function openDeleteDialog(user: User) {
+    setUserToDelete(user)
+    setShowDeleteDialog(true)
+  }
+
+  async function handleDeleteUser() {
+    if (!userToDelete) return
+    
+    setDeleting(true)
+    try {
+      await api.users.delete(userToDelete.id)
+      setShowDeleteDialog(false)
+      setUserToDelete(null)
+      toast.success('用户已删除')
+      await loadUsers()
+    } catch (err: any) {
+      toast.error('删除用户失败', {
+        description: err.message
+      })
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -339,15 +368,28 @@ export default function UsersPage() {
                     {formatDate(user.createdAt)}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEditDialog(user)}
-                      className="text-[#E42313] hover:text-[#E42313]/80 hover:bg-[#E42313]/5"
-                      style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '12px' }}
-                    >
-                      编辑
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEditDialog(user)}
+                        className="text-[#E42313] hover:text-[#E42313]/80 hover:bg-[#E42313]/5"
+                        style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '12px' }}
+                      >
+                        编辑
+                      </Button>
+                      {currentUser?.id !== user.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openDeleteDialog(user)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '12px' }}
+                        >
+                          删除
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -511,6 +553,37 @@ export default function UsersPage() {
                 className="bg-[#E42313] hover:bg-[#E42313]/90"
               >
                 {editSaving ? '保存中...' : '保存'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* 删除用户确认对话框 */}
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>确认删除用户</DialogTitle>
+              <DialogDescription>
+                确定要删除用户 &quot;{userToDelete?.name || userToDelete?.username}&quot; 吗？此操作不可恢复，将删除该用户的所有相关数据。
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteDialog(false)
+                  setUserToDelete(null)
+                }}
+                disabled={deleting}
+              >
+                取消
+              </Button>
+              <Button
+                onClick={handleDeleteUser}
+                disabled={deleting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleting ? '删除中...' : '确认删除'}
               </Button>
             </DialogFooter>
           </DialogContent>

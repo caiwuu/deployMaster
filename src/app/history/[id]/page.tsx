@@ -26,6 +26,7 @@ interface DeploymentDetail {
   project: { id: string; name: string; workspace: string | null }
   workflow: { id: string; name: string; description: string | null; commands: Array<{ command: string; sequence: number }> }
   user: { username: string; name: string | null }
+  branch: string | null
   status: string
   createdAt: string
   startedAt: string | null
@@ -271,9 +272,15 @@ export default function DeploymentDetailPage() {
                 </h1>
                 {getStatusBadge(deployment.status)}
               </div>
-              <p className="text-sm text-gray-500">
-                工作流: {deployment.workflow.name}
-              </p>
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <span>工作流: {deployment.workflow.name}</span>
+                {deployment.branch && (
+                  <span className="flex items-center gap-1">
+                    <span>🌿</span>
+                    <span>分支: {deployment.branch}</span>
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex gap-3">
               {(deployment.status === 'PENDING' || deployment.status === 'APPROVED' || deployment.status === 'FAILED') && (
@@ -337,14 +344,28 @@ export default function DeploymentDetailPage() {
         </div>
 
         {/* Deployment Info */}
-        <div className="grid grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg border border-gray-200">
             <div className="text-sm text-gray-500 mb-2">操作人</div>
-            <div className="text-lg font-medium text-gray-900">@{deployment.user.username}</div>
+            <div className="text-lg font-medium text-gray-900">
+              {deployment.user.name || deployment.user.username}
+            </div>
+            {deployment.user.name && (
+              <div className="text-xs text-gray-400 mt-1">@{deployment.user.username}</div>
+            )}
+          </div>
+          <div className="bg-white p-6 rounded-lg border border-gray-200">
+            <div className="text-sm text-gray-500 mb-2">分支</div>
+            <div className="text-lg font-medium text-gray-900">
+              {deployment.branch || '未指定'}
+            </div>
           </div>
           <div className="bg-white p-6 rounded-lg border border-gray-200">
             <div className="text-sm text-gray-500 mb-2">工作目录</div>
-            <div className="text-sm font-medium text-gray-900 font-mono">
+            <div 
+              className="text-sm font-medium text-gray-900 font-mono truncate"
+              title={deployment.project.workspace || '未配置'}
+            >
               {deployment.project.workspace || '未配置'}
             </div>
           </div>

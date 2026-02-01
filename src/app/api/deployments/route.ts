@@ -137,7 +137,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { 
       projectId, 
-      workflowId
+      workflowId,
+      branch
     } = body
 
     // 验证必填字段
@@ -224,6 +225,7 @@ export async function POST(request: NextRequest) {
           projectId,
           workflowId,
           userId: user.userId,
+          branch: branch || project.defaultBranch || null,
           status
         },
         include: {
