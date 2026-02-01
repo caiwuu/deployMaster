@@ -6,23 +6,11 @@ html {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-html.dark {
-  --background: #111827;
-  --foreground: #ffffff;
-}
-
-html.light {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* 自定义组件样式可以在这里添加 */
-
-
 
 @layer base {
   :root {
@@ -80,13 +68,51 @@ body {
   }
 }
 
-
-
 @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+    /* 统一字体渲染 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 浏览器兼容性修复 - 移除默认外观 */
+  input,
+  textarea,
+  select,
+  button {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+
+  /* 统一输入框样式 - Safari 兼容性 */
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='number'],
+  input[type='search'],
+  input[type='tel'],
+  input[type='url'],
+  textarea {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    /* 移除 Safari 的默认阴影和内边距 */
+    box-shadow: none;
+    outline: none;
+  }
+
+  /* 统一按钮样式 - Safari 兼容性 */
+  button {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    /* 移除 Safari 的默认按钮样式 */
+    -webkit-tap-highlight-color: transparent;
   }
 }

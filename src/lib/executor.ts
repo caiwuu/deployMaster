@@ -22,7 +22,6 @@ interface ExecutionResult {
 export async function executeDeployment(deploymentId: string): Promise<ExecutionResult> {
   const startTime = Date.now()
   let logs = ''
-  let success = false
 
   try {
     // 获取部署信息
@@ -109,8 +108,6 @@ export async function executeDeployment(deploymentId: string): Promise<Execution
     const duration = Math.floor((Date.now() - startTime) / 1000)
     logs += `\n[${new Date().toISOString()}] 🎉 部署成功完成！\n`
     logs += `[${new Date().toISOString()}] ⏱️  总耗时: ${duration}秒\n`
-
-    success = true
 
     // 更新为成功状态并释放锁
     await prisma.$transaction([

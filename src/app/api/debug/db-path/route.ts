@@ -2,12 +2,11 @@
  * 调试API - 检查数据库文件路径
  */
 
-import { NextRequest } from 'next/server'
 import { successResponse } from '@/lib/middleware'
 import path from 'path'
 import fs from 'fs'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const cwd = process.cwd()
     const dbPath = path.join(cwd, 'prisma', 'dev.db')

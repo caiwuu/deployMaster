@@ -184,6 +184,8 @@ export const api = {
       projectId?: string
       workflowId?: string
       status?: string
+      startDate?: string
+      endDate?: string
       page?: number
       pageSize?: number
     }) => {

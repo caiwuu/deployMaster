@@ -134,7 +134,7 @@ export default function DeploymentDetailPage() {
                         controller.abort()
                         return
                       }
-                    } catch (e) {
+                    } catch {
                       // 忽略解析错误
                     }
                   }

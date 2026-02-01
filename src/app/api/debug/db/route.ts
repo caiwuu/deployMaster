@@ -2,11 +2,10 @@
  * 调试API - 检查数据库状态
  */
 
-import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { successResponse } from '@/lib/middleware'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // 查询所有用户
     const users = await prisma.user.findMany({

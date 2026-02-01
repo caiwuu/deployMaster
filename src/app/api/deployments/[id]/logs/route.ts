@@ -28,7 +28,6 @@ export async function GET(
         controller.enqueue(encoder.encode('data: {"type":"connected"}\n\n'))
 
         let lastLogLength = 0
-        let isRunning = true
 
         // 轮询数据库获取最新日志
         const pollInterval = setInterval(async () => {

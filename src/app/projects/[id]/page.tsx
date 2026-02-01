@@ -759,7 +759,7 @@ export default function ProjectDetailPage() {
             <DialogHeader>
               <DialogTitle>确认删除成员</DialogTitle>
               <DialogDescription>
-                确定要从项目中移除成员 "{memberToDelete?.userName}" 吗？此操作不可恢复。
+                确定要从项目中移除成员 &quot;{memberToDelete?.userName}&quot; 吗？此操作不可恢复。
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -790,7 +790,7 @@ export default function ProjectDetailPage() {
             <DialogHeader>
               <DialogTitle>确认删除工作流</DialogTitle>
               <DialogDescription>
-                确定要删除工作流 "{workflowToDelete?.name}" 吗？此操作不可恢复。如果该工作流已有部署记录，删除后可能影响历史记录的查看。
+                确定要删除工作流 &quot;{workflowToDelete?.name}&quot; 吗？此操作不可恢复。如果该工作流已有部署记录，删除后可能影响历史记录的查看。
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
