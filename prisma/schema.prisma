@@ -1,0 +1,235 @@
+// Prisma Schema for DeployMaster
+// 轻量化部署工具 - 使用 SQLite 数据库
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 用户模型
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  username      String   @unique
+  password      String   // 加密后的密码
+  name          String?
+  avatar        String?
+  role          String   @default("DEVELOPER") // SUPER_ADMIN, PROJECT_OWNER, DEVELOPER, VIEWER
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
+  
+  // 关联关系
+  projects      ProjectMember[]
+  deployments   Deployment[]
+  auditLogs     AuditLog[]
+  approvals     Approval[]
+  notifications Notification[]
+  
+  @@map("users")
+}
+
+// 角色枚举 (SQLite 使用 String)
+// Role: SUPER_ADMIN, PROJECT_OWNER, DEVELOPER, VIEWER
+
+// 项目模型
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  repoUrl     String   // Git 仓库地址
+  repoType    String   @default("git") // git, gitlab, github, etc.
+  framework   String?  // 框架类型：Vue, React, Node等
+  workspace   String?  // 工作目录路径（本地路径）
+  status      String   @default("ACTIVE") // ACTIVE, ARCHIVED, INACTIVE
+  tags        String?  // JSON 存储标签
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // 关联关系
+  members      ProjectMember[]
+  workflows    Workflow[]
+  deployments  Deployment[]
+  workspaceLock WorkspaceLock?
+  
+  @@map("projects")
+}
+
+// ProjectStatus: ACTIVE, ARCHIVED, INACTIVE
+
+// 项目成员关系
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("MEMBER") // OWNER, ADMIN, MEMBER, VIEWER
+  createdAt DateTime @default(now())
+  
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+// ProjectRole: OWNER, ADMIN, MEMBER, VIEWER
+
+// 工作流模型（原环境模型）
+model Workflow {
+  id             String   @id @default(cuid())
+  projectId      String
+  name           String   // 工作流名称
+  description    String?  // 工作流描述
+  requireApproval Boolean @default(false) // 是否需要审批
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  commands    WorkflowCommand[]
+  deployments Deployment[]
+  
+  @@map("workflows")
+}
+
+// 工作流命令模型
+model WorkflowCommand {
+  id         String   @id @default(cuid())
+  workflowId String
+  command    String   // 要执行的命令
+  sequence   Int      // 执行顺序
+  createdAt  DateTime @default(now())
+  
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  @@map("workflow_commands")
+}
+
+// Workspace 互斥锁
+model WorkspaceLock {
+  id           String   @id @default(cuid())
+  projectId    String   @unique
+  deploymentId String   // 当前正在执行的部署ID
+  lockedAt     DateTime @default(now())
+  
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("workspace_locks")
+}
+
+// 服务器模型（暂时保留，可能未来不需要）
+// model Server {
+//   id            String   @id @default(cuid())
+//   workflowId    String
+//   name          String
+//   host          String
+//   port          Int      @default(22)
+//   username      String
+//   authType      String   @default("password") // password, key
+//   password      String?  // 加密存储
+//   privateKey    String?  // 加密存储
+//   deployPath    String   // 部署路径
+//   isActive      Boolean  @default(true)
+//   createdAt     DateTime @default(now())
+//   updatedAt     DateTime @updatedAt
+//   
+//   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+//   
+//   @@map("servers")
+// }
+
+// 部署记录
+model Deployment {
+  id            String   @id @default(cuid())
+  projectId     String
+  workflowId    String
+  userId        String
+  status        String   @default("PENDING") // PENDING, WAITING_APPROVAL, APPROVED, REJECTED, RUNNING, SUCCESS, FAILED, ROLLED_BACK, CANCELLED
+  deployedAt    DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  duration      Int?     // 秒
+  logs          String?  // 部署日志
+  errorMessage  String?
+  rollbackFrom  String?  // 回滚源部署ID
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workflow    Workflow     @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id])
+  approval    Approval?
+  
+  @@map("deployments")
+}
+
+// DeploymentStatus: PENDING, WAITING_APPROVAL, APPROVED, REJECTED, RUNNING, SUCCESS, FAILED, ROLLED_BACK, CANCELLED
+
+// 审批记录
+model Approval {
+  id           String   @id @default(cuid())
+  deploymentId String   @unique
+  requesterId  String
+  approverId   String?
+  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED, EXPIRED
+  comment      String?
+  requestedAt  DateTime @default(now())
+  respondedAt  DateTime?
+  expiresAt    DateTime?
+  
+  deployment Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  requester  User       @relation(fields: [requesterId], references: [id])
+  
+  @@map("approvals")
+}
+
+// ApprovalStatus: PENDING, APPROVED, REJECTED, EXPIRED
+
+// 审计日志
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // deploy, rollback, create_project, etc.
+  resource  String   // project:123, deployment:456
+  details   String?  // JSON 存储详细信息
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@map("audit_logs")
+}
+
+// 通知模型
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // DEPLOYMENT_SUCCESS, DEPLOYMENT_FAILED, APPROVAL_REQUEST, APPROVAL_RESULT, SYSTEM_ALERT
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+// NotificationType: DEPLOYMENT_SUCCESS, DEPLOYMENT_FAILED, APPROVAL_REQUEST, APPROVAL_RESULT, SYSTEM_ALERT
+
+// 系统配置
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   // JSON 存储配置值
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("system_config")
+}

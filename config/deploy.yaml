@@ -1,0 +1,78 @@
+# 请将 projectPath 修改为你的目标项目绝对路径
+projectPath: 'C:\Users\suxin\Desktop\code\cloudbase'
+
+commands:
+  checkUpdates:
+    - git reset --hard HEAD
+    - git checkout ${branch}
+    - git fetch origin ${branch}
+    - git log HEAD..origin/${branch} --pretty=format:"{\"hash\":\"%H\",\"message\":\"%s\",\"author\":\"%an\",\"date\":\"%ad\"}" --date=iso
+
+  getBranches:
+    - git branch --show-current
+    - git fetch --all
+    - git branch -r --format="%(refname:short)"
+
+  deployToDev:
+    - git fetch origin ${branch}
+    - git checkout ${branch}
+    - git reset --hard origin/${branch}
+    - npm ci
+    - npm run build
+    - scp -r dist/* root@188.104.1.26:/var/www/html/oac/dist8084/
+    - ssh root@188.104.1.26 "chown -R nginx:nginx /var/www/html/oac/dist8084/ && chmod -R 755 /var/www/html/oac/dist8084/"
+
+  pushImage:
+    - git fetch origin ${branch}
+    - git checkout ${branch}
+    - git reset --hard origin/${branch}
+    - npm ci
+    - npm run build
+    - scp -r dist/* root@188.104.1.26:/home/slgzt/jinhua/images/frontend/dist
+    - echo ------------------金华打包：----------------------
+    - ssh root@188.104.1.26 "chown -R nginx:nginx /home/slgzt/jinhua/images/frontend/dist && chmod -R 755 /home/slgzt/jinhua/images/frontend/dist && cd /home/slgzt/jinhua/images/frontend/ && sh docker_build_push.sh"
+
+  pushImageTest:
+    - git fetch origin ${branch}
+    - git checkout ${branch}
+    - git reset --hard origin/${branch}
+    - npm ci
+    - npm run build
+    - scp -r dist/* root@188.104.1.26:/home/slgzt/images-test-nb/frontend/dist
+    - echo ------------------宁波测试打包：----------------------
+    - ssh root@188.104.1.26 "chown -R nginx:nginx /home/slgzt/images-test-nb/frontend/dist && chmod -R 755 /home/slgzt/images-test-nb/frontend/dist && cd /home/slgzt/images-test-nb/frontend/ && sh docker_build_push.sh"
+
+  pushImageQuick:
+    - echo ------------------已跳过build,直接从dist构建镜像：----------------------
+    - scp -r dist/* root@188.104.1.26:/home/slgzt/jinhua/images/frontend/dist
+    - echo ------------------金华打包：----------------------
+    - ssh root@188.104.1.26 "chown -R nginx:nginx /home/slgzt/jinhua/images/frontend/dist && chmod -R 755 /home/slgzt/jinhua/images/frontend/dist && cd /home/slgzt/jinhua/images/frontend/ && sh docker_build_push.sh"
+
+  pushImageTestQuick:
+    - echo ------------------已跳过build,直接从dist构建镜像：----------------------
+    - scp -r dist/* root@188.104.1.26:/home/slgzt/images-test-nb/frontend/dist
+    - echo ------------------宁波测试打包：----------------------
+    - ssh root@188.104.1.26 "chown -R nginx:nginx /home/slgzt/images-test-nb/frontend/dist && chmod -R 755 /home/slgzt/images-test-nb/frontend/dist && cd /home/slgzt/images-test-nb/frontend/ && sh docker_build_push.sh"
+
+  install:
+    - npm install
+
+  installClean:
+    - npm ci
+
+  deployToDevQuick:
+    - echo ------------------本流程已经跳过type-check 和 npm ci：----------------------
+    - git fetch origin ${branch}
+    - git checkout ${branch}
+    - git reset --hard origin/${branch}
+    - npm run build-only
+    - scp -r dist/* root@188.104.1.26:/var/www/html/oac/dist8084/
+    - ssh root@188.104.1.26 "chown -R nginx:nginx /var/www/html/oac/dist8084/ && chmod -R 755 /var/www/html/oac/dist8084/"
+
+  gitPull:
+    - git fetch origin ${branch}
+    - git checkout ${branch}
+    - git reset --hard origin/${branch}
+
+  test:
+    - echo ------------------你好--hello----------------------
